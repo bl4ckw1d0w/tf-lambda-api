@@ -1,16 +1,29 @@
 package main
 
 import (
+    "context"
     "fmt"
-    "net/http"
+    "github.com/aws/aws-lambda-go/lambda"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-    fmt.Fprintf(w, "Hello, é eu!")
+// Request é a estrutura que representa a requisição
+type Request struct {
+    Name string `json:"name"`
+}
+
+// Response é a estrutura que representa a resposta
+type Response struct {
+    Message string `json:"message"`
+}
+
+// Handler é a função que lida com a requisição
+func Handler(ctx context.Context, request Request) (Response, error) {
+    return Response{
+        Message: fmt.Sprintf("Hello, %s!", request.Name),
+    }, nil
 }
 
 func main() {
-    http.HandleFunc("/", handler)
-    fmt.Println("Starting server on port 8080...")
-    http.ListenAndServe(":8080", nil)
+    // Configura o handler para o AWS Lambda
+    lambda.Start(Handler)
 }

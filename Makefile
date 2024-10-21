@@ -1,31 +1,39 @@
-# Nome do projeto
-PROJECT_NAME = tf-lambda-api
+.PHONY: all build package deploy terraform-init terraform-apply
 
-# Diretório de build
-BUILD_DIR = bin
-LAMBDA_EXECUTABLE = $(BUILD_DIR)/lambda_function
+# Variáveis
+BIN_DIR = .bin
+LAMBDA_BINARY = $(BIN_DIR)/lambda-binary
+LAMBDA_ZIP = $(BIN_DIR)/lambda_compact.zip
+GOOS = linux
+GOARCH = amd64
 
-# Criar o diretório de build, se não existir
-.PHONY: all
-run: 
-	@echo "Compilando o código"
-	mkdir -p $(BUILD_DIR)
-	go build -o $(LAMBDA_EXECUTABLE) main.go
-	@echo "Testando localmente"
-	go run main.go
+# Alvo principal
+all: build package terraform-init terraform-apply
 
-# Limpar os arquivos de build
-.PHONY: clean
+# Criar diretório .bin
+$(BIN_DIR):
+	mkdir -p $(BIN_DIR)
+
+# Compilar o binário da Lambda
+build: $(BIN_DIR)
+	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -o $(LAMBDA_BINARY) main.go
+
+# Empacotar o binário da Lambda em um arquivo ZIP na raiz
+package: build
+	cp $(LAMBDA_BINARY) bootstrap         # Copia o binário como 'bootstrap'
+	zip -j $(LAMBDA_ZIP) bootstrap        # Usa '-j' para não incluir diretórios no ZIP
+	rm bootstrap                          # Remove o arquivo temporário 'bootstrap'
+	@echo "Conteúdo do ZIP:"
+	@unzip -l $(LAMBDA_ZIP)
+
+# Inicializar o Terraform
+terraform-init:
+	cd terraform && terraform init
+
+# Aplicar o Terraform
+terraform-apply: terraform-init
+	cd terraform && terraform apply -auto-approve
+
+# Limpar binários e arquivos ZIP gerados
 clean:
-	@echo "Limpando os arquivos de build"
-
-	rm -rf $(BUILD_DIR)
-
-# Ajuda
-.PHONY: help
-help:
-	@echo "Comandos disponíveis:"
-	@echo "  make build    - Compila o código da função Lambda"
-	@echo "  make test     - Executa a função handler localmente"
-	@echo "  make clean    - Limpa os arquivos de build"
-	@echo "  make help     - Mostra essa mensagem"
+	rm -rf $(BIN_DIR)
